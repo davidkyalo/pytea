@@ -1,0 +1,23 @@
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+.env
+
+nosetests.xml
+
+# Virtual Envs.
+venv/
+venvs/
+.venv/
+.venvs/
+
+# Through away code.
+.trash/
+
+# Log files.
+logs/**
+
+run.py
