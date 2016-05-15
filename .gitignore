@@ -20,4 +20,8 @@ venvs/
 # Log files.
 logs/**
 
+xtests/
+xtest.py
+
 run.py
+
