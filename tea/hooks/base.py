@@ -36,11 +36,11 @@ class Base(object):
 
 	def _init_hooks(self):
 		self.hooks = stack()
-		self.hooks.setdefault( self.new_hook )
+		self.hooks.set_default( self.new_hook, True)
 
 	def new_hook(self):
 		hook = stack()
-		hook.setdefault( self.new_holder )
+		hook.set_default( self.new_holder, True)
 		return hook
 
 	def new_holder(self):

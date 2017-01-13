@@ -14,6 +14,9 @@ def joinpaths(base, *paths, real = True):
     path = __join(base, *paths)
     return realpath(path) if real else path
 
+def dirname(path):
+    return os.path.dirname( realpath(path) )
+
 def userpath(path):
     return os.path.expanduser(path)
 

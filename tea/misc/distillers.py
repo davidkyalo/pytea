@@ -6,7 +6,7 @@ __all__ = [
 
 class Filters(type):
 	pass
-		
+
 class Filter(object, metaclass = Filters):
 	"""docstring for Filter"""
 	def __init__(self, func, *args, mapfunc = None, **kwargs):
@@ -39,18 +39,19 @@ class Filter(object, metaclass = Filters):
 class sieve(Filter):
 	pass
 
+
 class collect(Filter):
 	def __init__(self, func, packages, *args, keep = False, mapfunc = None, **kwargs):
 		super(collect, self).__init__(func, *args, mapfunc = mapfunc, **kwargs)
 		self.packages = packages if isinstance(packages, tuple) else (packages,)
 		self.keep = keep
-	
+
 	def pack_item(self, item):
 		for package in self.packages:
 			package.pack(item)
 
 	def apply(self, distiller, item, mapfunc = None):
-		result = super(collect, self).apply(distiller, item, mapfunc = mapfunc)		
+		result = super(collect, self).apply(distiller, item, mapfunc = mapfunc)
 		if not result:
 			return True
 
@@ -64,8 +65,8 @@ import collections
 
 class Distillers(type):
 	pass
-		
-		
+
+
 class Distiller(object, metaclass = Distillers):
 
 	"""docstring for Distiller"""
@@ -77,7 +78,7 @@ class Distiller(object, metaclass = Distillers):
 
 	def __call__(self, item):
 		return self.apply(item)
-		
+
 
 	def apply(self, item):
 		for unit in self.units:
@@ -96,7 +97,7 @@ class Distiller(object, metaclass = Distillers):
 	def nest(self, cls, item, *units, mapfunc = None):
 		if not mapfunc:
 			mapfunc = self.mapfunc
-			
+
 		instance = cls(*units, mapfunc = mapfunc)
 		instance.items = self.items
 
