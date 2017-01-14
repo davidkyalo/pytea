@@ -1,8 +1,15 @@
 from os import path
 import re
 
+__all__ = ['NOTHING', 'EMPTY', 'NOT_PROVIDED']
 
 class NOTHING:
+	pass
+
+class EMPTY:
+	pass
+
+class NOT_PROVIDED:
 	pass
 
 """
