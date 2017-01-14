@@ -8,11 +8,32 @@ try:
 except:
 	yaml = None
 
+def is_config_key(key):
+	return not str(key).startswith('_') and not str(key).endswith('_')
 
+def _to_dict(value):
+	return value.to_dict() if isinstance(value, StaticMeta) else value
 
 class StaticMeta(type):
-	def __init__(cls, name, bases, nmspc):
-		super(StaticMeta, cls).__init__(name, bases, nmspc)
+	def __new__(mcls, name, bases, dct):
+		dct['__keys__'] = []
+		for k,v in dct.items():
+			if is_config_key(k) and not isinstance(v, classmethod):
+				dct['__keys__'].append(k)
+
+		for base in bases:
+			if not isinstance(base, StaticMeta):
+				continue
+			for key in base.__keys__:
+				if key not in dct['__keys__']:
+					dct[key] = base.get(key)
+					dct['__keys__'].append(key)
+
+		cls = super(StaticMeta, mcls).__new__(mcls, name, bases, dct)
+		return cls
+
+	def __init__(cls, name, bases, dct):
+		super(StaticMeta, cls).__init__(name, bases, dct)
 		cls.boot()
 
 	def __getitem__(cls, key):
@@ -22,22 +43,31 @@ class StaticMeta(type):
 		setattr(cls, key, value)
 
 	def boot(cls):
-		print('\n\n', 'Meta Class BOOT on {0}'.format(cls.__name__), '\n\n')
+		pass
+
+	def get(cls, key, default = NOTHING):
+		return getattr(cls, key) if default is NOTHING else getattr(cls, key, default)
+
+	def set(cls, key, value):
+		setattr(cls, key, value)
+
+	def to_dict(cls, *keys, exclude=False):
+		results = Stack()
+		if keys and not exclude:
+			for key in keys:
+				results[key] = _to_dict(getattr(cls, key))
+			return results
+		else:
+			exclude = len(keys) > 0 and exclude
+			for key in cls.__keys__:
+				if not exclude or key not in keys:
+					results[key] = _to_dict(getattr(cls, key))
+			return results
+
 
 
 class Static(metaclass=StaticMeta):
-
-	@classmethod
-	def boot(cls):
-		pass
-
-	@classmethod
-	def get(cls, key, default = None):
-		return getattr(cls, key, default)
-
-	@classmethod
-	def set(cls, key, value):
-		setattr(cls, key, value)
+	pass
 
 
 class ConfigMeta(type):
