@@ -1,0 +1,3 @@
+
+class BadMethodCall(Exception):
+	pass
