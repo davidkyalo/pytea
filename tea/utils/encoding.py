@@ -6,9 +6,9 @@ from decimal import Decimal
 import locale
 
 # from django.utils.functional import Promise
-from tea import six
-# from django.utils.six.moves.urllib.parse import quote
-from urllib.parse import quote
+from tea.utils import six
+from tea.utils.six.moves.urllib.parse import quote
+# from urllib.parse import quote
 
 
 class Promise(object):
