@@ -8,22 +8,32 @@ try:
 except:
 	yaml = None
 
-def is_config_key(key):
+def _is_config_key(key):
 	return not str(key).startswith('_') and not str(key).endswith('_')
+
+def _is_default_key(key):
+	return str(key) == '__default__'
 
 def _to_dict(value):
 	return value.to_dict() if isinstance(value, StaticMeta) else value
 
 class StaticMeta(type):
 	def __new__(mcls, name, bases, dct):
+		has_default = '__default__' in dct.keys()
 		dct['__keys__'] = []
 		for k,v in dct.items():
-			if is_config_key(k) and not isinstance(v, classmethod):
+			if _is_config_key(k) and not isinstance(v, classmethod):
 				dct['__keys__'].append(k)
 
 		for base in bases:
 			if not isinstance(base, StaticMeta):
 				continue
+			if not has_default:
+				default = base.get_default(NOTHING)
+				if default is not NOTHING:
+					dct['__default__'] = default
+					has_default = True
+
 			for key in base.__keys__:
 				if key not in dct['__keys__']:
 					dct[key] = base.get(key)
@@ -45,8 +55,13 @@ class StaticMeta(type):
 	def boot(cls):
 		pass
 
-	def get(cls, key, default = NOTHING):
+	def get(cls, key, default=NOTHING):
+		if default is NOTHING:
+			default = cls.get_default(default)
 		return getattr(cls, key) if default is NOTHING else getattr(cls, key, default)
+
+	def get_default(cls, otherwise=NOTHING):
+		return getattr(cls, '__default__', otherwise)
 
 	def set(cls, key, value):
 		setattr(cls, key, value)
