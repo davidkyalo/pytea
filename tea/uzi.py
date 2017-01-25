@@ -1,5 +1,5 @@
-import re
-import math
+import re, sys, math
+
 
 def begin(text, begin, n=1):
 	"""
@@ -21,6 +21,14 @@ def compact(text, strip=True, space=' '):
 def concat(iterable, sep = ' ', minify = False):
 	text = sep.join(iterable)
 	return minify(text, sep) if minify else compact(text)
+
+def humanize(value):
+	if not value:
+		return str(value)
+	text = re.sub('(.)([A-Z][a-z]+)', r'\1 \2', str(value))
+	text = re.sub('([a-z0-9])([A-Z])', r'\1 \2', text)
+	return re.sub('_+', ' ', text)
+
 
 def finish(text, finish, n=1):
 	"""
@@ -112,6 +120,20 @@ def words(text, words=100, end ='...'):
 		return short.rstrip() + end
 	else:
 		return short
+
+
+def to_bytes(x, charset=sys.getdefaultencoding(), errors='strict'):
+	if x is None:
+		return None
+	if isinstance(x, (bytes, bytearray, memoryview)):
+		return bytes(x)
+	if isinstance(x, str):
+		return x.encode(charset, errors)
+	raise TypeError('Expected bytes')
+
+
+def is_hex(s):
+	return re.fullmatch(r"^[0-9a-fA-F]+$", s or "") is not None
 
 
 """
