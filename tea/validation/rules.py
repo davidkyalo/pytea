@@ -112,19 +112,19 @@ class Rule(metaclass=RuleMeta):
 ##################################################################
 
 class Required(Rule):
-	message = "Field {__name__} is required."
+	message = "The {__name__} field is required."
 
 	def check(self, value, data_set=None):
 		return value not in EMPTY_VALUES
 
 class NotEmpty(Rule):
-	message = "Field {__name__} should not be empty."
+	message = "The {__name__} field should not be empty."
 
 	def check(self, value, data_set=None):
 		return value not in EMPTY_VALUES_AND_COLLECTIONS
 
 class Empty(Rule):
-	message = "Field {__name__} should be empty."
+	message = "The {__name__} field should be empty."
 
 	def check(self, value, data_set=None):
 		return value in EMPTY_VALUES_AND_COLLECTIONS
@@ -179,7 +179,7 @@ class Url(Regex):
 		r'(?::\d+)?'  # optional port
 		r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
-	message ="Field {__name__} must be a valid URL."
+	message ="The {__name__} field must be a valid URL."
 	schemes = ['http', 'https', 'ftp', 'ftps']
 
 	def __init__(self, schemes=None, **kwargs):
@@ -217,7 +217,7 @@ class Url(Regex):
 ##################################################################
 
 class Email(Rule):
-	message = "Field {__name__} must be a valid email address."
+	message = "The {__name__} field must be a valid email address."
 	user_regex = re.compile(
 		r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*$"  # dot-atom
 		r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"$)',  # quoted-string
@@ -276,19 +276,19 @@ class Email(Rule):
 ##################################################################
 
 class IPv4(Regex):
-	message = "Field {__name__} must be a valid IPv4 address."
+	message = "The {__name__} field must be a valid IPv4 address."
 	regex = IPV4_REGEX
 
 
 class IPv6(Rule):
-	message = "Field {__name__} must be a valid IPv6 address."
+	message = "The {__name__} field must be a valid IPv6 address."
 
 	def check(self, value, data_set=None):
 		return self.should_ignore(value) or is_valid_ipv6(force_text(value))
 
 
 class IP(Rule):
-	message = "Field {__name__} must be a valid IP address."
+	message = "The {__name__} field must be a valid IP address."
 
 	def check(self, value, data_set=None):
 		return self.should_ignore(value) or is_valid_ip(force_text(value))
@@ -303,7 +303,7 @@ IpAddress = IP
 ##################################################################
 
 class Integer(Rule):
-	message = "Field {__name__} must be an integer."
+	message = "The {__name__} field must be an integer."
 
 	def check(self, value, data_set=None):
 		if self.should_ignore(value):
