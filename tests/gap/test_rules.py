@@ -2,10 +2,11 @@ import unittest
 from nose.tools import raises
 from tea import uzi
 from tea.collections import Stack
-from tea.validation import ValidationError
+from tea.gap import ValidationError
 from nose_parameterized import parameterized
-from tea.validation.rules import (
+from tea.gap.rules import (
 	Rule, Required, Regex, Url, Email, Integer, IPv4, IPv6, IP,
+	Min, Max, MaxLen, MinLen, Length, Passes, Fails, Equals,
 	EMPTY, NOTHING, NOT_PROVIDED,
 	EMPTY_VALUES, EMPTY_COLLECTIONS, EMPTY_VALUES_AND_COLLECTIONS)
 
@@ -25,6 +26,18 @@ class PassRule(Rule):
 
 	def check(self, value, data_set=None):
 		return True
+
+class DummyObject(object):
+
+	def __init__(self, value='foo-bar'):
+		self.value = value
+
+	def __str__(self):
+		return str(self.value)
+
+	def __eq__(self, other):
+		return isinstance(other, DummyObject) and other.value == self.value
+
 
 
 class RulesTest(unittest.TestCase):
@@ -60,7 +73,6 @@ class RulesTest(unittest.TestCase):
 			(True, '', True),
 			(False, None, False),
 			(True, None, True),
-			(True, EMPTY, True),
 			(True, NOTHING, True),
 			(True, NOT_PROVIDED, True),
 			(False, 'abc', True),
@@ -74,23 +86,43 @@ class RulesTest(unittest.TestCase):
 
 	def test_validate(self):
 		rule = DummyRule()
-		self.assertTrue(rule.validate('foo'))
-		self.assertFalse(rule.validate(False))
-		self.assertIsInstance(rule.validate(False), ValidationError)
+		self.assertIsNone(rule.validate('foo'))
+
+	@raises(ValidationError)
+	def test_validate_raises_validation_error(self):
+		rule = DummyRule()
+		rule.validate(False)
 
 	def test_rule_is_callable(self):
 		rule = DummyRule()
-		self.assertTrue(rule('foo'))
+		self.assertIsNone(rule('foo'))
+
+	@raises(ValidationError)
+	def test_calling_rule_raises_validation_error(self):
+		rule = DummyRule()
+		rule(False)
 
 	def test_sets_value_placeholder(self):
 		rule = FailRule()
-		result = rule.validate('foo', {'data':'case'})
-		self.assertEqual('foo', result.placeholders.get('__value__'))
+		error = None
+		try:
+			rule('foo', {'data':'case'})
+		except ValidationError as e:
+			error = e
+
+		self.assertIsInstance(error, ValidationError)
+		self.assertEqual('foo', error.placeholders.get('__value__'))
 
 	def test_adds_data_set_to_placeholders(self):
 		rule = FailRule()
-		result = rule.validate('foo', {'data_item' : 'DATA'})
-		self.assertEqual('DATA', result.placeholders.get('data_item'))
+		error = None
+		try:
+			rule('foo', {'data_item' : 'DATA'})
+		except ValidationError as e:
+			error = e
+
+		self.assertIsInstance(error, ValidationError)
+		self.assertEqual('DATA', error.placeholders.get('data_item'))
 
 	@parameterized.expand([
 			('str', True, 'abc'),
@@ -101,7 +133,7 @@ class RulesTest(unittest.TestCase):
 			('empty str', False, ''),
 		])
 	def test_required(self, _, expected, value, message=None, placeholders=None, name=None):
-		rule = Required(message, placeholders, name)
+		rule = Required(message=message, placeholders=placeholders, name=name)
 		result = rule.check(value)
 		self.assertEqual(expected, result)
 
@@ -115,6 +147,60 @@ class RulesTest(unittest.TestCase):
 		])
 	def test_integer(self, expected, value, kwargs={}):
 		rule = Integer(**kwargs)
+		self.assertEqual(expected, rule.check(value))
+
+	@parameterized.expand([
+			(True, 20, 30),
+			(True, 20, 20),
+			(True, '20', '30'),
+			(True, '', 100, dict(ignore_empty=True)),
+			(False, 23, 20),
+			(False, '23', '20')
+		])
+	def test_max(self, expected, value, limit, kwargs={}):
+		rule = Max(limit, **kwargs)
+		self.assertEqual(expected, rule.check(value))
+
+	@parameterized.expand([
+			(True, 20, 10),
+			(True, 20, 20),
+			(True, '20', '10'),
+			(True, '', 100, dict(ignore_empty=True)),
+			(False, 2, 20),
+			(False, '2', '20')
+		])
+	def test_min(self, expected, value, limit, kwargs={}):
+		rule = Min(limit, **kwargs)
+		self.assertEqual(expected, rule.check(value))
+
+	@parameterized.expand([
+			(True, 'foo', 10),
+			(True, 'foo', 3),
+			(True, '', 5, dict(ignore_empty=True)),
+			(False, 'foobar', 3),
+		])
+	def test_maxlen(self, expected, value, limit, kwargs={}):
+		rule = MaxLen(limit, **kwargs)
+		self.assertEqual(expected, rule.check(value))
+
+	@parameterized.expand([
+			(True, 'foo', 1),
+			(True, 'foo', 3),
+			(True, '', 5, dict(ignore_empty=True)),
+			(False, 'foo', 5),
+		])
+	def test_minlen(self, expected, value, limit, kwargs={}):
+		rule = MinLen(limit, **kwargs)
+		self.assertEqual(expected, rule.check(value))
+
+	@parameterized.expand([
+			(True, 'foo', 3),
+			(True, '', 5, dict(ignore_empty=True)),
+			(False, 'foo', 5),
+			(False, 'foobar', 5),
+		])
+	def test_length(self, expected, value, limit, kwargs={}):
+		rule = Length(limit, **kwargs)
 		self.assertEqual(expected, rule.check(value))
 
 	@parameterized.expand([
@@ -193,3 +279,42 @@ class RulesTest(unittest.TestCase):
 		rule = IP(**kwargs)
 		self.assertEqual(expected, rule.check(value))
 
+	@parameterized.expand([
+			(True, 'foo-bar', 'foo-bar'),
+			(True, 254, 254),
+			(True, 254, '254', dict(as_str=True)),
+			(True, 'abc', lambda : 'abc'),
+			(True, DummyObject('abc'), DummyObject('abc')),
+			(True, '', 'foo-bar', dict(ignore_empty=True)),
+			(False, 'foo', 'foo-bar'),
+			(False, 254, '254'),
+			(False, 'abc', lambda : 'foo'),
+			(False, DummyObject('foo'), DummyObject('abc')),
+		])
+	def test_equals(self, expected, value, other_value, kwargs={}):
+		rule = Equals(other_value, **kwargs)
+		self.assertEqual(expected, rule.check(value))
+
+	def test_passes(self):
+		condition = lambda value, data: value == 'foo'
+		rule = Passes(condition)
+		self.assertTrue(rule.check('foo'))
+		self.assertFalse(rule.check('bar'))
+
+	def test_passes_with_params(self):
+		condition = lambda value, data, expected: value == expected
+		rule = Passes(condition, args=('foo',))
+		self.assertTrue(rule.check('foo'))
+		self.assertFalse(rule.check('bar'))
+
+	def test_fails(self):
+		condition = lambda value, data: value == 'foo'
+		rule = Fails(condition)
+		self.assertTrue(rule.check('bar'))
+		self.assertFalse(rule.check('foo'))
+
+	def test_fails_with_params(self):
+		condition = lambda value, data, expected: value == expected
+		rule = Fails(condition, args=('foo',))
+		self.assertTrue(rule.check('bar'))
+		self.assertFalse(rule.check('foo'))

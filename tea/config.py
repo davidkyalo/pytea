@@ -17,33 +17,48 @@ def _is_default_key(key):
 def _to_dict(value):
 	return value.to_dict() if isinstance(value, StaticMeta) else value
 
+def _get_class_attrs(cls):
+	attrs = {}
+	for base in reversed(cls.__bases__):
+		attrs.update(_get_class_attrs(base))
+
+	for k,v in cls.__dict__.items():
+		if _is_config_key(k) and not isinstance(v, classmethod):
+			attrs[k] = v
+	return attrs
+
+
 class StaticMeta(type):
-	def __new__(mcls, name, bases, dct):
-		has_default = '__default__' in dct.keys()
-		dct['__keys__'] = []
-		for k,v in dct.items():
+	def __new__(mcls, name, bases, body):
+		has_default = '__default__' in body
+		body['__keys__'] = []
+		for k,v in body.items():
 			if _is_config_key(k) and not isinstance(v, classmethod):
-				dct['__keys__'].append(k)
+				body['__keys__'].append(k)
 
 		for base in bases:
 			if not isinstance(base, StaticMeta):
-				continue
-			if not has_default:
-				default = base.get_default(NOTHING)
-				if default is not NOTHING:
-					dct['__default__'] = default
-					has_default = True
+				for k,v in _get_class_attrs(base).items():
+					if k not in body['__keys__']:
+						body[k] = v
+						body['__keys__'].append(k)
+			else:
+				if not has_default:
+					default = base.get_default(NOTHING)
+					if default is not NOTHING:
+						body['__default__'] = default
+						has_default = True
 
-			for key in base.__keys__:
-				if key not in dct['__keys__']:
-					dct[key] = base.get(key)
-					dct['__keys__'].append(key)
+				for key in base.__keys__:
+					if key not in body['__keys__']:
+						body[key] = base.get(key)
+						body['__keys__'].append(key)
 
-		cls = super(StaticMeta, mcls).__new__(mcls, name, bases, dct)
+		cls = super(StaticMeta, mcls).__new__(mcls, name, bases, body)
 		return cls
 
-	def __init__(cls, name, bases, dct):
-		super(StaticMeta, cls).__init__(name, bases, dct)
+	def __init__(cls, name, bases, body):
+		super(StaticMeta, cls).__init__(name, bases, body)
 		cls.boot()
 
 	def __getitem__(cls, key):
@@ -55,7 +70,12 @@ class StaticMeta(type):
 	def boot(cls):
 		pass
 
-	def get(cls, key, default=NOTHING):
+	def get(cls, key=None, default=NOTHING):
+		if key is None:
+			if not cls.has_default():
+				raise KeyError('None cannot be used a key coz class {0} has no default value.'.format(cls))
+			return cls.get_default()
+
 		if default is NOTHING:
 			default = cls.get_default(default)
 		return getattr(cls, key) if default is NOTHING else getattr(cls, key, default)
@@ -63,8 +83,14 @@ class StaticMeta(type):
 	def get_default(cls, otherwise=NOTHING):
 		return getattr(cls, '__default__', otherwise)
 
+	def has_default(cls):
+		return hasattr(cls, '__default__')
+
 	def set(cls, key, value):
 		setattr(cls, key, value)
+
+	def all(self):
+		return self.to_dict()
 
 	def to_dict(cls, *keys, exclude=False):
 		results = Stack()

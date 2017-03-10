@@ -94,7 +94,7 @@ def slice(text, length=100, offset = 0, last_word=True):
 
 def slug(text, delimeter = '-' , num = None, zeropad = 0):
 	text = text.lower()
-	text = re.sub('[^0-9a-zA-Z_-]+', ' ', text)
+	text = re.sub(r'[^0-9a-zA-Z_-]+', ' ', text)
 
 	if num is not None:
 		numf = '{:0>'+str(zeropad)+'}'
@@ -104,8 +104,10 @@ def slug(text, delimeter = '-' , num = None, zeropad = 0):
 
 
 def snake(text):
-	text = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', text)
-	return re.sub('([a-z0-9])([A-Z])', r'\1_\2', text).lower()
+	text = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', text)
+	text = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', text).lower()
+	# return text
+	return re.sub(r'[^0-9a-z_]+', '_', text)
 
 
 def words(text, words=100, end ='...'):

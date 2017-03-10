@@ -1,16 +1,20 @@
-from tea.collections import stack
-from collections import defaultdict
+from tea.collections import stack, Stack
+from tea.wrapper import wrap
 
 class Base(object):
 	"""docstring for Base"""
-	def __init__(self, feedback_handler = None, defult_level = 0, min_level = None, max_level = None, lock_callbacks = True):
+	def __init__(self, feedback_handler = None, defult_level = None, default_level = None, \
+			min_level = None, max_level = None, lock_callbacks = True):
 		if not feedback_handler:
 			feedback_handler = self.handle_feedback
 
 		self.feedback_handler = feedback_handler
 		self.lock_callbacks = lock_callbacks
 		self.levels = stack()
-		self.levels.default = defult_level
+		if defult_level is not None and default_level is None:
+			default_level = defult_level
+
+		self.levels.default = default_level
 		self.levels.min = min_level
 		self.levels.max = max_level
 
@@ -36,11 +40,11 @@ class Base(object):
 
 	def _init_hooks(self):
 		self.hooks = stack()
-		self.hooks.set_default( self.new_hook, True)
+		self.hooks.setdefault(Stack.ALL_ITEMS, wrap(self.new_hook))
 
 	def new_hook(self):
 		hook = stack()
-		hook.set_default( self.new_holder, True)
+		hook.setdefault(Stack.ALL_ITEMS, wrap(self.new_holder))
 		return hook
 
 	def new_holder(self):

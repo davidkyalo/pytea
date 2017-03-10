@@ -1,5 +1,4 @@
-import datetime
-import time
+import datetime, time, re
 from pytz import timezone
 
 home_timezone = 'Africa/Nairobi'
@@ -70,11 +69,14 @@ def ordinal(n):
 	m100 = n % 100
 	m10 = n % 10
 	small = {1:'st', 2:'nd', 3:'rd'}
-	return str(n)+('th' if 4 <= m100 <= 20 else small.get(m10, 'th'))
+	return 'th' if 4 <= m100 <= 20 else small.get(m10, 'th')
 
-def strformat(dtm, f):
-	return dtm.strftime(f).replace('{th}', ordinal(dtm.day))
+ORDINAL_REGEX = re.compile(r'\{th\}')
 
+def strftime(dtm, f, *args, **kwargs):
+	# return dtm.strftime(f).replace('{th}', ordinal(dtm.day))
+	th = ordinal(dtm.day) if isinstance(dtm, (datetime.datetime, datetime.date)) else ''
+	return dtm.strftime(f).format(*args, th=th, **kwargs)
 
 def happenedon(dtm, iconed = False, icon_cls = None):
 	if not dtm:
@@ -89,7 +91,7 @@ def happenedon(dtm, iconed = False, icon_cls = None):
 
 	now = datetime.datetime.now()
 	delta = now - dtm
-	f = '%b {th}, %Y'
+	f = '%b %d{th}, %Y'
 	tf = '%H:%M'
 
 	if delta_hrs(delta) < 1:
@@ -103,7 +105,7 @@ def happenedon(dtm, iconed = False, icon_cls = None):
 	elif now.year == dtm.year or delta.days < 300:
 		f = '%b {th}'+ sep + tf
 
-	return strformat(dtm, f) # dtm.strftime(f)
+	return strftime(dtm, f)
 
 
 
