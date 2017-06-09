@@ -7,7 +7,7 @@ from tea.utils import six
 from tea.utils.ipv46 import IPV4_REGEX, is_valid_ipv6, is_valid_ipv4, is_valid_ip
 from tea.utils.encoding import force_text
 from urllib.parse import urlsplit, urlunsplit
-from cached_property import cached_property
+from tea.decorators import cached_property
 
 ##################################################################
 # Constants

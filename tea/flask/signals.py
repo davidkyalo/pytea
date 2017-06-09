@@ -16,3 +16,8 @@ app_started = signals.signal('app-started')
 blueprint_registering = signals.signal('blueprint-registering')
 blueprint_registered = signals.signal('blueprint-registered')
 
+
+session_starting = signals.signal('session-starting')
+session_started = signals.signal('session-started')
+session_ending = signals.signal('session-ending')
+session_ended = signals.signal('session-ended')

@@ -1,4 +1,5 @@
 import re, sys, math
+import base64
 
 
 def begin(text, begin, n=1):
@@ -136,6 +137,28 @@ def to_bytes(x, charset=sys.getdefaultencoding(), errors='strict'):
 
 def is_hex(s):
 	return re.fullmatch(r"^[0-9a-fA-F]+$", s or "") is not None
+
+
+def tobase64(s, padding=int, altchars=b'-_'):
+	rv = str(base64.b64encode(s, altchars))
+	if padding is int:
+		lenb4, rv = len(rv), rv.rstrip('=')
+		rv += str(lenb4-len(rv))
+	elif padding:
+		rv = rv.replace('=', padding)
+	return to_bytes(rv)
+
+
+def debase64(s, padding=int, altchars=b'-_', validate=False):
+	if padding is int:
+		pad, s = int(s[-1]), s[:-1]
+		print(pad)
+		s = '%s%s' % (s, '='*pad)
+	elif padding:
+		pattern = '^(.*)[%s]+$' % re.escape(padding)
+		s = re.sub(pattern, r'\1\=')
+	rv = base64.b64decode(s, altchars=altchars, validate=validate)
+	return rv
 
 
 """

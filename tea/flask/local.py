@@ -16,7 +16,7 @@ def local_proxy(func, *args, **kwargs):
 	object. With the function as the local.
 	"""
 	def local():
-		return func(*args, **kwargs)
+		return local.func(*args, **kwargs)
 
 	local.func = func
 	local.args = args
@@ -28,7 +28,7 @@ def callable_local_proxy(func, *args, **kwargs):
 	object with the function as the local.
 	"""
 	def local():
-		return func(*args, **kwargs)
+		return local.func(*args, **kwargs)
 
 	local.func = func
 	local.args = args

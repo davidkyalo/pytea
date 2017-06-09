@@ -1,6 +1,5 @@
 from flask import _app_ctx_stack, _request_ctx_stack
-from . import exc
-from .util import top_app_ctx, top_request_ctx
+from . import exc, local
 from threading import RLock
 
 NOTHING = object()
@@ -96,4 +95,24 @@ class app_ctx_property(property):
 					delattr(ctx, name)
 			return
 
+
+@local.callable_local_proxy
+def current_app_ctx():
+	ctx = _app_ctx_stack.top
+	if ctx is None:
+		raise exc.AppContextError(
+			'Error accessing current application context. '\
+			'The application context not pushed.'
+		)
+	return ctx
+
+@local.callable_local_proxy
+def current_request_ctx():
+	ctx = _request_ctx_stack.top
+	if ctx is None:
+		raise exc.RequestContextError(
+			'Error accessing current request context. '\
+			'The request context not pushed.'
+		)
+	return ctx
 

@@ -3,19 +3,31 @@ import glob
 from .file import File
 
 realpath = os.path.realpath
+abspath = os.path.abspath
 
-__join = os.path.join
+_join = os.path.join
 
 def pathexists(base, *paths):
-    path = realpath(__join(base, *paths))
+    path = abspath(_join(base, *paths) if paths else base)
     return os.path.exists(path)
 
-def joinpaths(base, *paths, real = True):
-    path = __join(base, *paths)
-    return realpath(path) if real else path
 
-def dirname(path):
-    return os.path.dirname( realpath(path) )
+def checkpath(base, *paths, real=False, abs=True):
+    path = joinpaths(base, *paths, real=real, abs=abs)
+    return path if os.path.exists(path) else None
+
+
+def joinpaths(base, *paths, real=False, abs=True):
+    path = _join(base, *paths)
+    func= realpath if real else abspath if abs else None
+    return func(path) if func else path
+
+join = joinpaths
+
+
+def dirname(base, *paths):
+    path = abspath(_join(base, *paths) if paths else base)
+    return os.path.dirname(path)
 
 def userpath(path):
     return os.path.expanduser(path)
@@ -38,22 +50,20 @@ def getfiles(path, recursive = True):
 def refreshlogsdir(path):
     if not pathexists(path):
         return mkdir(path)
-    pattern = realpath(__join(path, '*'))
+    pattern = realpath(_join(path, '*'))
     fpaths = glob.glob(pattern)
     for fpath in fpaths:
         os.remove(fpath)
 
-
-
 def findfiles(pattern, path = '', type = None):
     cls = type if type else File
-    pathname = realpath(__join(path, pattern))
+    pathname = realpath(_join(path, pattern))
     fpaths = glob.glob(pathname)
     return [cls(path = p) for p in fpaths]
 
 def findfile(pattern, path = '', type = None):
     cls = type if type else File
-    pathname = realpath(__join(path, pattern))
+    pathname = realpath(_join(path, pattern))
     fpaths = glob.glob(pathname)
     return cls(path = fpaths[0]) if len(fpaths) > 0 else None
 

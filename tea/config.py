@@ -105,6 +105,8 @@ class StaticMeta(type):
 					results[key] = _to_dict(getattr(cls, key))
 			return results
 
+	def __iter__(self):
+		return iter(self.to_dict().items())
 
 
 class Static(metaclass=StaticMeta):

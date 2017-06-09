@@ -1,11 +1,14 @@
 import threading
 from . import uzi
 from uuid import uuid4
+from warnings import warn
 
 class DynamicProperty(object):
 	"""docstring for ClassName"""
 
 	def __init__(self, func, args=None, kwargs=None):
+		raise Exception('DynamicProperty: Hey!!! Depreciated Error Consider '\
+			'using decorators on tea.decorators.')
 		self.__doc__ = getattr(func, '__doc__')
 		self.func = func
 		self.args = args or ()
@@ -67,6 +70,7 @@ def dynamic_property(*args, **kwargs):
 	def wrapper(func):
 		return DynamicProperty(func, args=args, kwargs=kwargs)
 	return wrapper
+
 
 
 def cached_property(*args, _cache_attr=None, **kwargs):

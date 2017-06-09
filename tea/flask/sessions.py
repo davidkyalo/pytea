@@ -1,5 +1,5 @@
 import pickle
-from .. import exc
+from . import exc, signals
 from uuid import uuid4
 from datetime import timedelta, datetime
 from werkzeug.datastructures import CallbackDict
@@ -10,7 +10,6 @@ from flask.sessions import (
 	SessionInterface as BaseSessionInterface, total_seconds,
 	SecureCookieSessionInterface as BaseCookieInterface, BadSignature
 )
-from ..util import top_app_ctx, top_request_ctx, setupmethod
 from warnings import warn
 
 try:
@@ -21,7 +20,7 @@ except ImportError:
 
 NOTHING = object()
 
-REPLACEABLE_TYPES = (types(None), str, int, float, bool)
+REPLACEABLE_TYPES = (type(None), str, int, float, bool)
 
 class Session(object):
 	"""Session Object."""
@@ -175,7 +174,7 @@ class Session(object):
 
 	def clear(self, confirm):
 		"""Clear all the current session data."""
-		if confirm is True:
+		if confirm:
 			self.data.clear()
 			self._reset_attrs('flashed', 'xflashed', 'immortals')
 
@@ -186,9 +185,18 @@ class Session(object):
 	#####################
 	# Internal Methods
 	#####################
+
+	def reset(self):
+		self.invalidated = self.id
+		self._reset_attrs(
+					'id', 'data', 'flashed', 'xflashed',
+					'immortals', 'last_updated')
+
 	def start_session(self, app, request):
 		if self._started is True:
 			raise RuntimeError("Error starting session. Session already active.")
+
+		signals.session_starting.send(self, app=app)
 
 		if self._initial:
 			self._init_attrs(**self._initial)
@@ -197,19 +205,31 @@ class Session(object):
 			self._init_attrs()
 
 		if self.lifespan and (datetime.now() - self.last_updated) >= self.lifespan:
-			self._remove_dead_data()
+			self._clear_expired_data()
 			self.invalidated = self.id
 			self._reset_attrs('id')
 		self._started = True
+
+		signals.session_started.send(self, app=app)
+
+		if hasattr(request, 'init_session'):
+			request.init_session(self)
+
 		return self
 
 	def end_session(self, app, response):
 		if self._started is not True:
 			raise RuntimeError("Error ending session. Session not active.")
-		self._clear_expired_data()
+
+		signals.session_ending.send(self, app=app)
+
+		self._age_flashed_data()
 		self.last_updated = datetime.now()
 		data = self._gather_storage_data()
 		self._started = False
+
+		signals.session_ended.send(self, app=app)
+
 		return data
 
 	def _clear_expired_data(self):
@@ -234,7 +254,7 @@ class Session(object):
 			if key not in kwargs:
 				value = default(self) if callable(default) else default
 			else:
-				value = kwargs.pop()
+				value = kwargs.pop(key)
 			setattr(self, key, value)
 
 	def _update_attrs(self, **kwargs):
@@ -264,7 +284,7 @@ class Session(object):
 		"""Return a real dict representation of the session object."""
 		rv = {}
 		for k in self.__fields__.keys():
-			rv[k] = getattr(self, key)
+			rv[k] = getattr(self, k)
 		return rv
 
 	def _gather_storage_data(self):
@@ -309,13 +329,12 @@ class Session(object):
 			raise AttributeError('Session has no attribute {}.'.format(key))
 
 	def __repr__(self):
-		return '<Session[{}] {} #{} {}\n   data:{}... }>'.format(
+		return '<Session[{}] {} #{}\n  Last Updated: {}\n  data: {}>'.format(
 								self.__class__.__name__,
-								self.name, self.id[:16],
+								self.name, self.id,
 								self.last_updated,
-								str(self.data)[:70])
-
-
+								str(self.data))
+								# str(self.data)[:70])
 
 
 class SessionInterface(BaseSessionInterface):
@@ -355,7 +374,7 @@ class SecureCookieSessionInterface(SessionInterface,
 	session_class = Session
 
 	def open_session(self, app, request):
-		session = BaseCookieInterface.open_session(app, request)
+		session = BaseCookieInterface.open_session(self, app, request)
 		if session is None:
 			return None
 		if not isinstance(session, self.session_class):
@@ -366,7 +385,7 @@ class SecureCookieSessionInterface(SessionInterface,
 
 	def save_session(self, app, session, response):
 		session.end_session(app, response)
-		BaseCookieInterface.save_session(app, session, response)
+		BaseCookieInterface.save_session(self, app, session, response)
 
 
 SecureCookieSessionInterface.__doc__ = BaseCookieInterface.__doc__
@@ -387,7 +406,7 @@ class RedisSessionInterface(SessionInterface, BaseCookieInterface):
 	def get_redis_session_lifetime(self, app, session):
 		if session.permanent:
 			return app.permanent_session_lifetime
-		return timedelta(days=7)
+		return timedelta(days=14)
 
 	def load_session_id(self, app, request):
 		s = self.get_signing_serializer(app)
@@ -435,15 +454,19 @@ class RedisSessionInterface(SessionInterface, BaseCookieInterface):
 		domain = self.get_cookie_domain(app)
 		path = self.get_cookie_path(app)
 
+		if not session:
+			if hasattr(session, 'id'):
+				self.redis.delete(self.prefix + session.id)
+
+			if session.modified:
+				response.delete_cookie(
+					app.session_cookie_name,
+					domain=domain, path=path
+				)
+			return
+
 		if session.invalidated:
 			self.redis.delete(self.prefix + session.invalidated)
-
-		if not session:
-			self.redis.delete(self.prefix + session.id)
-			if session.modified:
-				response.delete_cookie(app.session_cookie_name,
-									omain=domain, path=path)
-			return
 
 		data = session.end_session(app, response)
 
@@ -451,13 +474,18 @@ class RedisSessionInterface(SessionInterface, BaseCookieInterface):
 		cookie_exp = self.get_expiration_time(app, session)
 
 		val = self.redis_serializer.dumps(data)
-		self.redis.setex(self.prefix + session.id, val,
-						 int(redis_exp.total_seconds()))
+		cls = getattr(self.redis, 'provider_class', self.redis.__class__)
+
+		if cls is Redis or issubclass(cls, Redis):
+			self.redis.setex(self.prefix + session.id, val, redis_exp)
+		else:
+			self.redis.setex(self.prefix + session.id, redis_exp, val)
 
 		httponly = self.get_cookie_httponly(app)
 		secure = self.get_cookie_secure(app)
+		val = self.get_signing_serializer(app).dumps(session.id)
 
-		response.set_cookie(app.session_cookie_name, session.id,
+		response.set_cookie(app.session_cookie_name, val,
 							expires=cookie_exp, httponly=httponly,
 							domain=domain, path=path, secure=secure)
 

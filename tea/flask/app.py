@@ -2,9 +2,19 @@ from . import signals
 from tea.importer import import_object
 from flask import Flask as BaseFlask, Blueprint as BaseBlueprint
 from flask.app import setupmethod
-
+from .wrappers import Request, Response
+from .sessions import SecureCookieSessionInterface
+from .config import Config
 
 class Flask(BaseFlask):
+
+	config_class = Config
+
+	request_class = Request
+
+	response_class = Response
+
+	session_interface = SecureCookieSessionInterface()
 
 	def __init__(self, import_name, static_path=None, static_url_path=None,
 				static_folder='static', template_folder='templates',
