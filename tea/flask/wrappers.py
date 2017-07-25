@@ -63,18 +63,22 @@ class Response(BaseResponse):
 	def __init__(self, response=None, status=None, headers=None,
 			mimetype=None, content_type=None, **kwargs):
 		if self.should_be_json(response):
-			response = self.morph_to_json(response)
-			mimetype = 'application/json'
+			rsp = self.morph_to_json(response, mimetype, content_type, headers)
+			response, mimetype, content_type, headers = rsp
+			
 		super(Response, self).__init__(response, status, headers,
             mimetype=mimetype, content_type=content_type, **kwargs)
 	
-	
 	def should_be_json(self, response):
-		return not(response is None or isinstance(response, six.string_types))
+		return not(response is None or not isinstance(response, dict))
 	
-	def morph_to_json(self, response):
-		return jsonify(response)
+	def morph_to_json(self, response, mimetype=None, content_type=None, headers=None):
+		return jsonify(response), 'application/json', content_type, headers
 
 
 
+class JSONResponse(Response):
 
+	def should_be_json(self, response):
+		return True
+	

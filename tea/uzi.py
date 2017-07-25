@@ -140,25 +140,24 @@ def is_hex(s):
 
 
 def tobase64(s, padding=int, altchars=b'-_'):
-	rv = str(base64.b64encode(s, altchars))
+	rv = base64.b64encode(to_bytes(s), altchars).decode()
 	if padding is int:
 		lenb4, rv = len(rv), rv.rstrip('=')
-		rv += str(lenb4-len(rv))
+		rv = '%s%s' % (rv, str(lenb4-len(rv)))
 	elif padding:
 		rv = rv.replace('=', padding)
-	return to_bytes(rv)
+	return rv
 
 
 def debase64(s, padding=int, altchars=b'-_', validate=False):
 	if padding is int:
 		pad, s = int(s[-1]), s[:-1]
-		print(pad)
 		s = '%s%s' % (s, '='*pad)
 	elif padding:
 		pattern = '^(.*)[%s]+$' % re.escape(padding)
 		s = re.sub(pattern, r'\1\=')
 	rv = base64.b64decode(s, altchars=altchars, validate=validate)
-	return rv
+	return rv.decode()
 
 
 """
